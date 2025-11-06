@@ -1,20 +1,6 @@
-# netlify.toml
 [build]
-  # Run the Notion fetch script before building Jekyll
   command = "npm run fetch:notion && bundle exec jekyll build"
   publish = "_site"
 
-# Ensure Netlify uses a recent Ruby so Jekyll installs cleanly
 [build.environment]
   RUBY_VERSION = "3.2.2"
-
-# Optional: speed up build by caching Ruby + Node deps
-[[plugins]]
-  package = "@netlify/plugin-cache"
-  [plugins.inputs.paths]
-    - "vendor/bundle"
-    - "node_modules"
-
-# Optional: more explicit caching for Bundler
-[context.production.environment]
-  BUNDLE_PATH = "vendor/bundle"
