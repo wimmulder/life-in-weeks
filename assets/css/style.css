@@ -1,0 +1,27 @@
+/* assets/css/style.css */
+:root {
+  --box-size: 14px;
+  --box-gap: 4px;
+  --color-empty: #e6e8ea;
+  --color-event: #79b8ff;
+  --color-important: #f26d6d;
+  --text: #222;
+  --muted: #666;
+}
+body { font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; color: var(--text); margin: 20px; }
+.container { max-width: 900px; margin: 0 auto; }
+.life-header { margin-bottom: 16px; }
+.life-grid {
+  display: grid;
+  grid-template-columns: repeat(52, var(--box-size));
+  gap: var(--box-gap);
+}
+.week-box { width: var(--box-size); height: var(--box-size); background: var(--color-empty); border-radius: 3px; position: relative; }
+.week-box.has-event { background: var(--color-event); }
+.week-box.important { background: var(--color-important); }
+.tooltip { display: none; position: absolute; z-index: 10; top: 18px; left: 18px; width: 280px; background: #fff; border: 1px solid #ccd2d8; box-shadow: 0 6px 24px rgba(0,0,0,0.12); border-radius: 6px; padding: 8px 10px; font-size: 13px; }
+.week-box:hover .tooltip { display: block; }
+.tooltip .event { margin-bottom: 6px; }
+.tooltip .event:last-child { margin-bottom: 0; }
+.tooltip .event .title { font-weight: 600; }
+.tooltip .event .meta { color: var(--muted); font-size: 12px; }

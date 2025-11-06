@@ -1,0 +1,37 @@
+---
+layout: default
+title: Life in Weeks
+---
+
+<h1>Life in Weeks</h1>
+{%- assign weeks_to_render = 100 | times: 52 -%}
+<div class="life-grid">
+  {%- for w in (0..weeks_to_render) -%}
+    {%- assign key = w | append: "" -%}
+    {%- assign events = site.data.life.eventsByWeek[key] -%}
+    {%- assign hasImportant = false -%}
+    {%- if events -%}
+      {%- for e in events -%}
+        {%- if e.importance and e.importance > 0 -%}
+          {%- assign hasImportant = true -%}
+        {%- endif -%}
+      {%- endfor -%}
+    {%- endif -%}
+    <div class="week-box {% if events %}has-event{% endif %} {% if hasImportant %}important{% endif %}">
+      {% if events %}
+        <div class="tooltip">
+          {% for e in events %}
+            <div class="event">
+              <div class="title">{{ e.emoji }} {% if e.url %}<a href="{{ e.url }}">{{ e.title }}</a>{% else %}{{ e.title }}{% endif %}</div>
+              <div class="meta">
+                {{ e.date }}
+                {% if e.tags and e.tags.size > 0 %} • {{ e.tags | join: ", " }}{% endif %}
+                {% if e.importance %} • importance {{ e.importance }}{% endif %}
+              </div>
+            </div>
+          {% endfor %}
+        </div>
+      {% endif %}
+    </div>
+  {%- endfor -%}
+</div>
