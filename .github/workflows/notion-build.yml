@@ -1,0 +1,41 @@
+# filename: .github/workflows/notion-build.yml
+name: Notion → Netlify build trigger
+
+on:
+  schedule:
+    - cron: '*/10 * * * *' # every 10 minutes
+  workflow_dispatch: {}     # allow manual runs from the Actions tab
+
+jobs:
+  trigger:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install deps
+        run: npm i node-fetch dotenv
+
+      - name: Run Notion poller
+        env:
+          NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
+          NOTION_DATABASE_ID: ${{ secrets.NOTION_DATABASE_ID }}
+          NETLIFY_BUILD_HOOK: ${{ secrets.NETLIFY_BUILD_HOOK }}
+        run: node scripts/notion-to-netlify.js
+
+      # Persist state so subsequent runs know the last edit timestamp
+      - name: Commit last sync state
+        run: |
+          if [ -f ".cache/notion-last-sync.json" ]; then
+            git config user.name "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+            git add .cache/notion-last-sync.json
+            git commit -m "chore(ci): update Notion last-sync timestamp" || echo "No changes to commit"
+            git push
+          fi
