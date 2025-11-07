@@ -1,5 +1,12 @@
 {
   "name": "life-in-weeks",
   "private": true,
-  "type": "module"
+  "type": "module",
+  "scripts": {
+    "fetch:notion": "node scripts/export-notion-to-data.js"
+  },
+  "dependencies": {
+    "node-fetch": "^3.3.2",
+    "dotenv": "^16.4.5"
+  }
 }
