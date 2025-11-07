@@ -1,5 +1,8 @@
-# filename: .github/workflows/notion-build.yml
 name: Notion → Netlify build trigger
+
+permissions:
+  contents: write
+
 
 on:
   schedule:
@@ -30,12 +33,15 @@ jobs:
         run: node scripts/notion-to-netlify.js
 
       # Persist state so subsequent runs know the last edit timestamp
+      # inside your job, replace the push step
       - name: Commit last sync state
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           if [ -f ".cache/notion-last-sync.json" ]; then
             git config user.name "github-actions[bot]"
             git config user.email "github-actions[bot]@users.noreply.github.com"
             git add .cache/notion-last-sync.json
-            git commit -m "chore(ci): update Notion last-sync timestamp" || echo "No changes to commit"
-            git push
+            git commit -m "chore(ci): update Notion last-sync timestamp" || exit 0
+            git push https://x-access-token:${GH_TOKEN}@github.com/wimmulder/life-in-weeks.git HEAD:main
           fi
