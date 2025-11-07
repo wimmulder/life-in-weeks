@@ -1,11 +1,10 @@
-// filename: scripts/export-notion-to-data.js
 import 'dotenv/config';
 import fetch from 'node-fetch';
 import fs from 'fs';
 import path from 'path';
 
 const NOTION_TOKEN = process.env.NOTION_TOKEN;
-const NOTION_DB_ID = process.env.NOTION_DB_ID; // Netlify env var name
+const NOTION_DB_ID = process.env.NOTION_DB_ID; // this must match Netlify env
 const NOTION_VERSION = '2022-06-28';
 const OUTPUT_JSON = '_data/life_in_weeks.json';
 
@@ -80,7 +79,6 @@ async function main() {
   const rows = await fetchAllRows(2000);
   const mapped = rows.map(mapRow);
 
-  // Stable sort for templates
   mapped.sort((a, b) => {
     const ya = a.year ?? 0;
     const yb = b.year ?? 0;
@@ -96,6 +94,6 @@ async function main() {
 }
 
 main().catch(err => {
-  console.error(err.stack || err.message);
+  console.error('Export failed:', err.stack || err.message);
   process.exit(1);
 });
