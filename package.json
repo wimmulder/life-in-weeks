@@ -1,10 +1,5 @@
 {
-  "scripts": {
-    "test:notion": "node scripts/test-notion.cjs",
-    "fetch:notion": "node scripts/fetch-notion-life.cjs",
-    "serve": "npm run fetch:notion && bundle exec jekyll serve"
-  },
-  "dependencies": {
-    "@notionhq/client": "2.2.10"
-  }
+  "name": "life-in-weeks",
+  "private": true,
+  "type": "module"
 }

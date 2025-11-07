@@ -1,5 +1,5 @@
 // filename: scripts/notion-to-netlify.js
-// Poll Notion for edits and trigger a Netlify build via build hook when changes are detected.
+// ESM version. Poll Notion for edits and trigger a Netlify build via Netlify build hook.
 
 import 'dotenv/config';
 import fetch from 'node-fetch';
@@ -7,20 +7,17 @@ import fs from 'fs';
 import path from 'path';
 
 /**
- * SECURITY
- * - Store NOTION_TOKEN, NOTION_DATABASE_ID, NETLIFY_BUILD_HOOK in GitHub repo secrets.
- *
- * BEHAVIOR
- * - Checks Notion DB sorted by last_edited_time.
- * - If any page edited since the last sync timestamp, POST to Netlify build hook.
- * - Debounces rapid edits by only triggering once per run.
+ * NOTES
+ * - Notion DB queries cannot sort by the special page field "last_edited_time".
+ *   We query without server-side sorts and sort client-side by page.last_edited_time.
+ * - Secrets come from GitHub repository secrets via the workflow env.
  */
 
 const NOTION_TOKEN = process.env.NOTION_TOKEN;
 const NOTION_DATABASE_ID = process.env.NOTION_DATABASE_ID;
 const NETLIFY_BUILD_HOOK = process.env.NETLIFY_BUILD_HOOK;
 
-// Persist last sync timestamp in repo (safe, no secrets).
+// Persist last sync timestamp in repo (safe; contains no secrets)
 const STATE_DIR = '.cache';
 const STATE_FILE = path.join(STATE_DIR, 'notion-last-sync.json');
 
@@ -39,7 +36,10 @@ function writeLastSyncISO(iso) {
   fs.writeFileSync(STATE_FILE, JSON.stringify({ lastSyncISO: iso }, null, 2));
 }
 
-async function fetchLatestPages(limit = 50) {
+async function queryNotionPage(startCursor = null, pageSize = 100) {
+  const body = { page_size: Math.min(pageSize, 100) };
+  if (startCursor) body.start_cursor = startCursor;
+
   const res = await fetch(`https://api.notion.com/v1/databases/${NOTION_DATABASE_ID}/query`, {
     method: 'POST',
     headers: {
@@ -47,10 +47,7 @@ async function fetchLatestPages(limit = 50) {
       'Notion-Version': '2022-06-28',
       'Content-Type': 'application/json'
     },
-    body: JSON.stringify({
-      sorts: [{ property: 'last_edited_time', direction: 'descending' }],
-      page_size: limit
-    })
+    body: JSON.stringify(body)
   });
 
   if (!res.ok) {
@@ -61,6 +58,20 @@ async function fetchLatestPages(limit = 50) {
   return await res.json();
 }
 
+async function fetchAllPages(maxItems = 1000) {
+  let results = [];
+  let cursor = null;
+
+  while (results.length < maxItems) {
+    const data = await queryNotionPage(cursor, 100);
+    results = results.concat(data.results || []);
+    if (!data.has_more || !data.next_cursor) break;
+    cursor = data.next_cursor;
+  }
+
+  return results;
+}
+
 async function triggerNetlifyBuild(reason) {
   const res = await fetch(NETLIFY_BUILD_HOOK, {
     method: 'POST',
@@ -68,7 +79,6 @@ async function triggerNetlifyBuild(reason) {
     // Include a small payload for traceability in Netlify logs
     body: JSON.stringify({ trigger_title: reason })
   });
-
   if (!res.ok) {
     const txt = await res.text();
     throw new Error(`Netlify build trigger failed: ${res.status} ${txt}`);
@@ -83,16 +93,16 @@ async function main() {
   const lastSyncISO = readLastSyncISO();
   const sinceTs = lastSyncISO ? new Date(lastSyncISO).getTime() : 0;
 
-  const data = await fetchLatestPages(50);
+  // Fetch and sort client-side by last_edited_time (desc)
+  const pages = await fetchAllPages(1000);
+  const sorted = pages
+    .filter(p => !!p.last_edited_time)
+    .sort((a, b) => new Date(b.last_edited_time).getTime() - new Date(a.last_edited_time).getTime());
 
-  // Identify updates since last sync
-  const updated = data.results.filter(p => {
-    const t = p.last_edited_time ? new Date(p.last_edited_time).getTime() : 0;
-    return t > sinceTs;
-  });
+  const updated = sorted.filter(p => new Date(p.last_edited_time).getTime() > sinceTs);
 
   if (updated.length > 0) {
-    const latestEditedISO = data.results[0]?.last_edited_time || new Date().toISOString();
+    const latestEditedISO = sorted[0]?.last_edited_time || new Date().toISOString();
     console.log(`Detected ${updated.length} Notion updates. Latest edit: ${latestEditedISO}`);
     await triggerNetlifyBuild(`Notion updates: ${updated.length}`);
     writeLastSyncISO(latestEditedISO);
