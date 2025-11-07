@@ -1,23 +1,15 @@
 // filename: scripts/notion-to-netlify.js
-// ESM version. Poll Notion for edits and trigger a Netlify build via Netlify build hook.
+// ESM: Poll Notion for edits and trigger a Netlify build via build hook.
 
 import 'dotenv/config';
 import fetch from 'node-fetch';
 import fs from 'fs';
 import path from 'path';
 
-/**
- * NOTES
- * - Notion DB queries cannot sort by the special page field "last_edited_time".
- *   We query without server-side sorts and sort client-side by page.last_edited_time.
- * - Secrets come from GitHub repository secrets via the workflow env.
- */
-
 const NOTION_TOKEN = process.env.NOTION_TOKEN;
 const NOTION_DATABASE_ID = process.env.NOTION_DATABASE_ID;
 const NETLIFY_BUILD_HOOK = process.env.NETLIFY_BUILD_HOOK;
 
-// Persist last sync timestamp in repo (safe; contains no secrets)
 const STATE_DIR = '.cache';
 const STATE_FILE = path.join(STATE_DIR, 'notion-last-sync.json');
 
@@ -43,28 +35,27 @@ async function queryNotionPage(startCursor = null, pageSize = 100) {
   const res = await fetch(`https://api.notion.com/v1/databases/${NOTION_DATABASE_ID}/query`, {
     method: 'POST',
     headers: {
-      'Authorization': `Bearer ${NOTION_TOKEN}`,
+      Authorization: `Bearer ${NOTION_TOKEN}`,
       'Notion-Version': '2022-06-28',
       'Content-Type': 'application/json'
     },
     body: JSON.stringify(body)
   });
 
+  const txt = await res.text();
   if (!res.ok) {
-    const txt = await res.text();
     throw new Error(`Notion query failed: ${res.status} ${txt}`);
   }
-
-  return await res.json();
+  return JSON.parse(txt);
 }
 
 async function fetchAllPages(maxItems = 1000) {
-  let results = [];
+  const results = [];
   let cursor = null;
 
   while (results.length < maxItems) {
     const data = await queryNotionPage(cursor, 100);
-    results = results.concat(data.results || []);
+    results.push(...(data.results || []));
     if (!data.has_more || !data.next_cursor) break;
     cursor = data.next_cursor;
   }
@@ -76,7 +67,6 @@ async function triggerNetlifyBuild(reason) {
   const res = await fetch(NETLIFY_BUILD_HOOK, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    // Include a small payload for traceability in Netlify logs
     body: JSON.stringify({ trigger_title: reason })
   });
   if (!res.ok) {
@@ -93,8 +83,9 @@ async function main() {
   const lastSyncISO = readLastSyncISO();
   const sinceTs = lastSyncISO ? new Date(lastSyncISO).getTime() : 0;
 
-  // Fetch and sort client-side by last_edited_time (desc)
   const pages = await fetchAllPages(1000);
+
+  // Client-side sort by last_edited_time desc
   const sorted = pages
     .filter(p => !!p.last_edited_time)
     .sort((a, b) => new Date(b.last_edited_time).getTime() - new Date(a.last_edited_time).getTime());
