@@ -3,10 +3,13 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "fetch:notion": "node scripts/export-notion-to-data.js"
+    "fetch:notion": "node scripts/export-notion-to-data.js",
+    "build": "bundle exec jekyll build",
+    "serve": "bundle exec jekyll serve --livereload --port 4000",
+    "dev": "npm run fetch:notion && npm run serve"
   },
   "dependencies": {
-    "node-fetch": "^3.3.2",
-    "dotenv": "^16.4.5"
+    "dotenv": "^16.6.1",
+    "node-fetch": "^3.3.2"
   }
 }
